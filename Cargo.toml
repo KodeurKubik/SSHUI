@@ -1,0 +1,30 @@
+[workspace]
+members = ["examples/counter", "examples/wordle", "examples/login"]
+resolver = "2"
+
+[package]
+name = "sshui"
+version = "0.1.0"
+edition = "2024"
+description = "A rust lib to make a customizable user-interface over SSH with Ratatui"
+license = "MIT"
+repository = "https://github.com/KodeurKubik/SSHUI"
+keywords = ["ssh", "ratatui", "tui", "ui-over-ssh"]
+authors = ["Kubik <kubik@openvoxel.studio>"]
+categories = ["command-line-interface", "network-programming"]
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+unicode-width = "0.2"
+async-trait = "0.1"
+termwiz = "0.23"
+ratatui = "0.30"
+russh = "0.56"
+anyhow = "1"
+
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[features]
+keyring = ["dep:serde", "dep:serde_json", "dep:keyring"]
