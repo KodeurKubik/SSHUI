@@ -17,7 +17,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! sshui = { version = "0.1", git = "https://github.com/KodeurKubik/SSHUI" }
+//! sshui = "0.1"
 //! ratatui = "0.28"
 //! anyhow = "1.0"
 //! ```
