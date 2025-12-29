@@ -19,7 +19,11 @@ use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    #[cfg(debug_assertions)]
+    let key_pair = sshui::get_debug_ssh_key()?;
+    #[cfg(not(debug_assertions))]
     let key_pair = sshui::get_ssh_key()?;
+
     let config = sshui::Config {
         keys: vec![key_pair],
         ..Default::default()

@@ -113,7 +113,7 @@ mod key;
 mod ssh;
 
 #[cfg(feature = "keyring")]
-pub use key::get_ssh_key;
+pub use key::{get_debug_ssh_key, get_ssh_key};
 pub type SSHUITerminal = Terminal<SSHUIBackend>;
 pub use auth::{AuthDecision, AuthHandler, NoAuth};
 pub use ratatui;

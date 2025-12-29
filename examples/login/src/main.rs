@@ -24,7 +24,11 @@ impl AuthHandler for MyAuth {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    #[cfg(debug_assertions)]
+    let key_pair = sshui::get_debug_ssh_key().unwrap();
+    #[cfg(not(debug_assertions))]
     let key_pair = sshui::get_ssh_key().unwrap();
+
     let config = sshui::Config {
         keys: vec![key_pair],
         ..Default::default()
