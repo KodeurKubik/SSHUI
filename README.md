@@ -110,7 +110,7 @@ The repository includes example applications:
 - **Wordle** - A word guessing game
 - **Login** - A 'Hello World' behind the username 'hello' and password 'world'
 
-Run an example:
+Run an example: (you can specify the port with --port {number})
 
 ```bash
 cargo run -p example --release
