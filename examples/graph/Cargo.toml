@@ -1,0 +1,13 @@
+[package]
+name = "graph-ssh"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+sshui = { path = "../../", features = ["keyring"] }
+
+tokio = { version = "1", features = ["full"] }
+meval = "0.2"
+anyhow = "1"
+rand = "0.9"

@@ -113,7 +113,7 @@ The repository includes example applications:
 Run an example:
 
 ```bash
-cargo run -p wordle-ssh --release
+cargo run -p example --release
 ```
 
 Then connect via SSH:

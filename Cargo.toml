@@ -1,5 +1,5 @@
 [workspace]
-members = ["examples/counter", "examples/wordle", "examples/login"]
+members = ["examples/counter", "examples/wordle", "examples/login", "examples/graph", "examples/example"]
 resolver = "2"
 
 [package]

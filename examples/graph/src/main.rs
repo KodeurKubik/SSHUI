@@ -1,8 +1,3 @@
-// Ported version of my Wordle
-// Available under the MIT License at: https://github.com/KodeurKubik/wordle-rust
-
-mod wordlist;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
@@ -16,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     sshui::new_server(config, ("0.0.0.0", 2222), || {
-        Box::new(wordle_ssh::WordleApp::default())
+        Box::new(graph_ssh::GraphApp::default())
     })
     .await?;
 

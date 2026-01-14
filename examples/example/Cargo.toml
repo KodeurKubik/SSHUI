@@ -1,0 +1,16 @@
+[package]
+name = "example"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+sshui = { path = "../../", features = ["keyring"] }
+
+graph-ssh = { path = "../graph" }
+wordle-ssh = { path = "../wordle" }
+counter-ssh = { path = "../counter" }
+
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+rand = "0.9"
