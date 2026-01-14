@@ -19,7 +19,16 @@ async fn main() -> io::Result<()> {
         ..Default::default()
     };
 
-    sshui::new_server(config, ("0.0.0.0", 2222), || {
+    let mut port = 2222u16;
+    let args: Vec<String> = std::env::args().collect();
+    for i in 0..args.len() {
+        if args[i] == "--port" && i + 1 < args.len() {
+            port = args[i + 1].parse().unwrap_or(2222);
+            break;
+        }
+    }
+
+    sshui::new_server(config, ("0.0.0.0", port), || {
         Box::new(counter_ssh::App::default())
     })
     .await
