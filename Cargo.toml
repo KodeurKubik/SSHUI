@@ -2,6 +2,11 @@
 members = ["examples/counter", "examples/wordle", "examples/login", "examples/graph", "examples/example"]
 resolver = "2"
 
+exclude = [
+    "assets/*",
+    "examples/*",
+]
+
 [package]
 name = "sshui"
 version = "0.1.2"
