@@ -4,9 +4,7 @@ A Rust framework for building interactive terminal user interfaces (TUIs) that r
 
 ## Demo
 
-
 https://github.com/user-attachments/assets/a2ef3643-38bc-4e68-ab97-c4bbddaf3338
-
 
 ## Features
 
@@ -106,6 +104,8 @@ Press `Ctrl+C` to exit.
 
 The repository includes example applications:
 
+- **Example** - All the following examples at once :)
+- **Graph** - A really cool grapher in the terminal (holy moly)
 - **Counter** - A simple incrementing counter with keyboard controls
 - **Wordle** - A word guessing game
 - **Login** - A 'Hello World' behind the username 'hello' and password 'world'

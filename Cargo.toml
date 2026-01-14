@@ -22,7 +22,7 @@ ratatui = "0.30"
 russh = "0.56"
 anyhow = "1"
 
-keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"], optional = true }
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native", "sync-secret-service"], optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 

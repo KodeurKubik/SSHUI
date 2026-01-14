@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub const WORDLIST: [&str; 2315] = [
     "ABACK", "ABASE", "ABATE", "ABBEY", "ABBOT", "ABHOR", "ABIDE", "ABLED", "ABODE", "ABORT",
     "ABOUT", "ABOVE", "ABUSE", "ABYSS", "ACORN", "ACRID", "ACTOR", "ACUTE", "ADAGE", "ADAPT",
@@ -233,6 +234,7 @@ pub const WORDLIST: [&str; 2315] = [
     "YOUNG", "YOUTH", "ZEBRA", "ZESTY", "ZONAL",
 ];
 
+#[allow(dead_code)]
 pub const VALIDLIST: [&str; 14855] = [
     "ROSSA", "JETTY", "WIZZO", "CUPPA", "COHOE", "GURKS", "SQUAD", "BEISA", "SHRUG", "FOSSA",
     "FLUYT", "CAMUS", "SPEED", "MAMIL", "ARRAY", "POLIO", "BARNS", "PANES", "SOUTS", "LIMAS",
