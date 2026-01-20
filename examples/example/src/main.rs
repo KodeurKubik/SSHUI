@@ -8,6 +8,8 @@ use sshui::ratatui::{
 };
 use sshui::{InputEvent, KeyCode, KeyEvent, SSHUITerminal};
 
+pub const TICK_RATE: std::time::Duration = std::time::Duration::from_millis(250);
+
 #[tokio::main]
 async fn main() -> Result<()> {
     #[cfg(debug_assertions)]
@@ -29,7 +31,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    sshui::new_server(config, ("0.0.0.0", port), || {
+    sshui::new_server_with_refresh(config, ("0.0.0.0", port), TICK_RATE, || {
         Box::new(ExampleApp {
             selected: 0,
             app: None,
@@ -104,6 +106,12 @@ impl sshui::App for ExampleApp {
                 self.exit_message = Some("Thank you for testing the SSHUI demo!".to_string())
             }
             _ => {}
+        }
+    }
+
+    fn on_tick(&mut self) {
+        if let Some(app) = &mut self.app {
+            return app.on_tick();
         }
     }
 }
