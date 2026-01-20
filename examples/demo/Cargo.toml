@@ -1,16 +1,11 @@
 [package]
-name = "example"
+name = "demo-ssh"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [dependencies]
 sshui = { path = "../../", features = ["keyring"] }
-
-graph-ssh = { path = "../graph" }
-wordle-ssh = { path = "../wordle" }
-counter-ssh = { path = "../counter" }
-demo-ssh = { path = "../demo" }
 
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"

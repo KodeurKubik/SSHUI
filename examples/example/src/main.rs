@@ -228,6 +228,11 @@ struct ProjectStruct {
 fn get_projects() -> Vec<ProjectStruct> {
     vec![
         ProjectStruct {
+            title: "Demo".to_string(),
+            description: "show everything sshui x ratatui can do!".to_string(),
+            app: Box::new(demo_ssh::App::new(demo_ssh::ENHANCED_GRAPHICS)),
+        },
+        ProjectStruct {
             title: "Grapher".to_string(),
             description: "Graph functions in  your terminal! (holy moly)".to_string(),
             app: Box::new(graph_ssh::GraphApp::default()),

@@ -1,9 +1,10 @@
 use anyhow::Result;
 use ratatui::Terminal;
-use russh::server::{Auth, Handler, Msg, Session};
+use russh::server::{Auth, Handle, Handler, Msg, Session};
 use russh::*;
-use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use termwiz::input::InputParser;
 
 use crate::auth::{AuthMethod, auth_to_decision};
@@ -21,6 +22,8 @@ pub struct SSHUIServer {
     pub connected_clients: Arc<AtomicUsize>,
     /// A method to handle auth
     pub auth: Arc<dyn AuthHandler>,
+    /// Optional refresh rate for periodic re-rendering
+    pub refresh_rate: Option<Duration>,
 }
 
 impl server::Server for SSHUIServer {
@@ -31,13 +34,16 @@ impl server::Server for SSHUIServer {
 
         SSHUIHandler {
             channel: None,
-            cols: 0,
-            rows: 0,
+            cols: Arc::new(AtomicU32::new(0)),
+            rows: Arc::new(AtomicU32::new(0)),
             term: None,
-            app: Some(app),
+            app: Arc::new(Mutex::new(Some(app))),
             input_parser: InputParser::new(),
             connected_clients: self.connected_clients.clone(),
             auth: self.auth.clone(),
+            authenticated: false,
+            refresh_rate: self.refresh_rate,
+            refresh_running: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -50,24 +56,33 @@ pub struct SSHUIHandler {
     /// The SSH channel ID for this session.
     channel: Option<ChannelId>,
     /// Terminal width in columns.
-    cols: u32,
+    cols: Arc<AtomicU32>,
     /// Terminal height in rows.
-    rows: u32,
+    rows: Arc<AtomicU32>,
     /// Terminal type
     term: Option<String>,
-    /// The application instance for this client.
-    app: Option<Box<dyn App>>,
+    /// The application instance for this client (shared for refresh task).
+    app: Arc<Mutex<Option<Box<dyn App>>>>,
     /// Parser for terminal input sequences.
     input_parser: InputParser,
     /// Shared counter of connected clients.
     connected_clients: Arc<AtomicUsize>,
     /// A method to handle auth
     auth: Arc<dyn AuthHandler>,
+    /// Whether this connection has been authenticated (and thus counted)
+    authenticated: bool,
+    /// Optional refresh rate for periodic re-rendering
+    refresh_rate: Option<Duration>,
+    /// Flag to stop refresh task on disconnect
+    refresh_running: Arc<AtomicBool>,
 }
 
 impl SSHUIHandler {
     fn render(&mut self, channel: ChannelId, session: &mut Session) -> Result<()> {
-        let output = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let cols = self.cols.load(Ordering::SeqCst);
+        let rows = self.rows.load(Ordering::SeqCst);
+
+        let output = Arc::new(Mutex::new(Vec::new()));
         let output_clone = output.clone();
 
         let write = move |bytes: &[u8]| {
@@ -76,7 +91,7 @@ impl SSHUIHandler {
             }
         };
 
-        let size = ratatui::layout::Rect::new(0, 0, self.cols as u16, self.rows as u16);
+        let size = ratatui::layout::Rect::new(0, 0, cols as u16, rows as u16);
 
         let backend = SSHUIBackend {
             write: Box::new(write),
@@ -85,13 +100,19 @@ impl SSHUIHandler {
 
         let mut terminal = Terminal::new(backend)?;
 
-        if let Some(app) = &mut self.app {
-            let returned = app.render(&mut terminal)?;
-
-            if returned.is_some() {
-                let _ = self.close(channel, session, returned);
-                return Ok(());
+        let should_close = if let Ok(mut app_guard) = self.app.lock() {
+            if let Some(app) = app_guard.as_mut() {
+                app.render(&mut terminal)?
+            } else {
+                None
             }
+        } else {
+            None
+        };
+
+        if let Some(exit_message) = should_close {
+            let _ = self.close(channel, session, Some(exit_message));
+            return Ok(());
         }
 
         if let Ok(buf) = output.lock() {
@@ -124,9 +145,7 @@ impl SSHUIHandler {
     }
 
     fn log_connected(&self) {
-        let count = self
-            .connected_clients
-            .load(std::sync::atomic::Ordering::SeqCst);
+        let count = self.connected_clients.load(Ordering::SeqCst);
 
         if count == 0 {
             print!("\r\x1b[KWaiting for clients... ");
@@ -137,6 +156,54 @@ impl SSHUIHandler {
         let _ = std::io::stdout().flush();
     }
 }
+
+/// Renders the app and sends output via Handle (for background refresh task)
+async fn render_to_handle(
+    handle: &Handle,
+    channel: ChannelId,
+    app: &Arc<Mutex<Option<Box<dyn App>>>>,
+    cols: u32,
+    rows: u32,
+) -> Result<()> {
+    let output = {
+        let output_buf = Arc::new(Mutex::new(Vec::new()));
+        let output_clone = output_buf.clone();
+
+        let write = move |bytes: &[u8]| {
+            if let Ok(mut buf) = output_clone.lock() {
+                buf.extend_from_slice(bytes);
+            }
+        };
+
+        let size = ratatui::layout::Rect::new(0, 0, cols as u16, rows as u16);
+        let backend = SSHUIBackend {
+            write: Box::new(write),
+            size,
+        };
+        let mut terminal = Terminal::new(backend)?;
+
+        if let Ok(mut app_guard) = app.lock() {
+            if let Some(app) = app_guard.as_mut() {
+                app.on_tick();
+                let _ = app.render(&mut terminal);
+            }
+        }
+
+        output_buf
+            .lock()
+            .ok()
+            .map(|b| b.clone())
+            .unwrap_or_default()
+    };
+
+    handle
+        .data(channel, output.into())
+        .await
+        .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+
+    Ok(())
+}
+
 impl Handler for SSHUIHandler {
     type Error = anyhow::Error;
 
@@ -156,8 +223,8 @@ impl Handler for SSHUIHandler {
         _session: &mut Session,
     ) -> Result<()> {
         self.channel = Some(channel);
-        self.cols = cols;
-        self.rows = rows;
+        self.cols.store(cols, Ordering::SeqCst);
+        self.rows.store(rows, Ordering::SeqCst);
         self.term = Some(term.to_string());
 
         Ok(())
@@ -165,6 +232,7 @@ impl Handler for SSHUIHandler {
 
     /// Increments the client counter and logs the new connection status.
     async fn auth_succeeded(&mut self, _session: &mut Session) -> Result<()> {
+        self.authenticated = true;
         self.connected_clients
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.log_connected();
@@ -214,6 +282,44 @@ impl Handler for SSHUIHandler {
         let _ = session.data(channel, "\x1b[?1049h\x1b[H\x1b[?25l".into());
 
         self.render(channel, session)?;
+
+        // Start periodic refresh task if refresh_rate is set
+        if let Some(refresh_rate) = self.refresh_rate {
+            let handle = session.handle();
+            let running = self.refresh_running.clone();
+            let app = self.app.clone();
+            let cols = self.cols.clone();
+            let rows = self.rows.clone();
+            running.store(true, Ordering::SeqCst);
+
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(refresh_rate);
+                interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                // Skip the first immediate tick
+                interval.tick().await;
+
+                while running.load(Ordering::SeqCst) {
+                    interval.tick().await;
+                    if !running.load(Ordering::SeqCst) {
+                        break;
+                    }
+
+                    // Render directly from background task
+                    if let Err(_) = render_to_handle(
+                        &handle,
+                        channel,
+                        &app,
+                        cols.load(Ordering::SeqCst),
+                        rows.load(Ordering::SeqCst),
+                    )
+                    .await
+                    {
+                        break;
+                    }
+                }
+            });
+        }
+
         Ok(())
     }
 
@@ -235,8 +341,10 @@ impl Handler for SSHUIHandler {
                 return Ok(());
             }
 
-            if let Some(app) = &mut self.app {
-                app.input(event);
+            if let Ok(mut app_guard) = self.app.lock() {
+                if let Some(app) = app_guard.as_mut() {
+                    app.input(event);
+                }
             }
         }
 
@@ -257,25 +365,23 @@ impl Handler for SSHUIHandler {
         _px_height: u32,
         session: &mut Session,
     ) -> Result<()> {
-        self.cols = cols;
-        self.rows = rows;
+        self.cols.store(cols, Ordering::SeqCst);
+        self.rows.store(rows, Ordering::SeqCst);
         let _ = session.data(channel, "\x1b[2J\x1b[H".into());
         self.render(channel, session)?;
         Ok(())
     }
+}
 
-    /// Handles SSH channel closure.
-    ///
-    /// Decrements the client counter and updates the connection status display.
-    async fn channel_close(
-        &mut self,
-        _channel: ChannelId,
-        _session: &mut Session,
-    ) -> std::result::Result<(), Self::Error> {
-        self.connected_clients
-            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
-        self.log_connected();
+impl Drop for SSHUIHandler {
+    fn drop(&mut self) {
+        // Stop the refresh task
+        self.refresh_running.store(false, Ordering::SeqCst);
 
-        Ok(())
+        // Only decrement if we previously incremented (after successful auth)
+        if self.authenticated {
+            self.connected_clients.fetch_sub(1, Ordering::SeqCst);
+            self.log_connected();
+        }
     }
 }

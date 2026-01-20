@@ -1,5 +1,5 @@
 [workspace]
-members = ["examples/counter", "examples/wordle", "examples/login", "examples/graph", "examples/example"]
+members = ["examples/counter", "examples/wordle", "examples/login", "examples/graph", "examples/example", "examples/demo"]
 resolver = "2"
 
 exclude = [

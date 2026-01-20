@@ -1,10 +1,12 @@
-// Ported version of Ratatui's Basic Counter App
-// Available under the MIT License at: https://github.com/ratatui/ratatui-website/blob/main/code/tutorials/counter-app-basic/src/main.rs
+// Ported version of the Ratatui Demo, available under the MIT License (see ../LICENSE)
+// and available at: https://github.com/ratatui/ratatui/tree/main/examples/apps/demo
 
-// This function changes quite a lot
-// instead of running the terminal directly,
-// run the server with a on-client-accept closure
-// and it has to go async
+//! # [Ratatui] Original Demo example
+//!
+//! [Ratatui]: https://github.com/ratatui/ratatui
+//! [examples]: https://github.com/ratatui/ratatui/blob/main/examples
+//! [examples readme]: https://github.com/ratatui/ratatui/blob/main/examples/README.md
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     #[cfg(debug_assertions)]
@@ -26,13 +28,11 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
-    sshui::new_server(config, ("0.0.0.0", port), || {
-        Box::new(counter_ssh::App::default())
+    sshui::new_server_with_refresh(config, ("0.0.0.0", port), demo_ssh::TICK_RATE, || {
+        Box::new(demo_ssh::App::new(demo_ssh::ENHANCED_GRAPHICS))
     })
     .await
     .unwrap();
 
     Ok(())
 }
-
-// You can find the remaining code in the `lib.rs` file in the same folder
