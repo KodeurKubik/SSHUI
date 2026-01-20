@@ -9,7 +9,7 @@ exclude = [
 
 [package]
 name = "sshui"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "A rust lib to make a customizable user-interface over SSH with Ratatui"
 license = "MIT"
