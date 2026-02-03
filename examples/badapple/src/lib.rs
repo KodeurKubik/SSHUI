@@ -3,15 +3,15 @@ use sshui::{
     ratatui::{
         Frame,
         buffer::Buffer,
-        layout::Rect,
+        layout::{Alignment, Constraint, Rect},
+        symbols::border,
         text::{Line, Text},
-        widgets::{Block, Clear, Paragraph, Widget},
+        widgets::{Block, Paragraph, Widget},
     },
 };
 
 const FRAMES: &str = include_str!("./badapple.ascii");
 const WIDTH: usize = 96;
-const HEIGHT: usize = 36;
 
 pub struct App {
     exit: bool,
@@ -85,38 +85,26 @@ impl App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        Clear.render(area, buf);
-
-        const BOX_WIDTH: u16 = WIDTH as u16 + 2;
-        const BOX_HEIGHT: u16 = HEIGHT as u16 + 2;
-
-        let box_area = Rect {
-            x: area.x + area.width.saturating_sub(BOX_WIDTH) / 2,
-            y: area.y + area.height.saturating_sub(BOX_HEIGHT) / 2,
-            width: BOX_WIDTH,
-            height: BOX_HEIGHT,
-        };
-
-        let block = Block::bordered().title(" BAD APPLE ");
-        let inner = block.inner(box_area);
-        block.render(box_area, buf);
+        let block = Block::bordered()
+            .border_set(border::PLAIN)
+            .title(" BAD APPLE ")
+            .title_alignment(Alignment::Center);
+        let inner = block.inner(area);
+        block.render(area, buf);
 
         if self.frame_index > 0 && self.frame_index <= self.frames.len() {
             let current = &self.frames[self.frame_index - 1];
+            let content_height = current.len() as u16;
+            let centered_area = inner.centered_vertically(Constraint::Length(content_height));
+
             Paragraph::new(Text::from(
                 current
                     .iter()
-                    .map(|&s| {
-                        let char_count = s.chars().count();
-                        if char_count < WIDTH {
-                            Line::from(format!("{s:<WIDTH$}"))
-                        } else {
-                            Line::from(s)
-                        }
-                    })
+                    .map(|&s| Line::from(s).centered())
                     .collect::<Vec<_>>(),
             ))
-            .render(inner, buf);
+            .centered()
+            .render(centered_area, buf);
         }
     }
 }
