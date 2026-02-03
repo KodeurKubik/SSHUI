@@ -158,14 +158,15 @@ impl SSHUIHandler {
 }
 
 /// Renders the app and sends output via Handle (for background refresh task)
+/// Returns Ok(true) if app wants to exit, Ok(false) to continue, Err on failure
 async fn render_to_handle(
     handle: &Handle,
     channel: ChannelId,
     app: &Arc<Mutex<Option<Box<dyn App>>>>,
     cols: u32,
     rows: u32,
-) -> Result<()> {
-    let output = {
+) -> Result<bool> {
+    let (output, should_exit) = {
         let output_buf = Arc::new(Mutex::new(Vec::new()));
         let output_clone = output_buf.clone();
 
@@ -182,18 +183,24 @@ async fn render_to_handle(
         };
         let mut terminal = Terminal::new(backend)?;
 
-        if let Ok(mut app_guard) = app.lock() {
+        let exit_message = if let Ok(mut app_guard) = app.lock() {
             if let Some(app) = app_guard.as_mut() {
                 app.on_tick();
-                let _ = app.render(&mut terminal);
+                app.render(&mut terminal)?
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
-        output_buf
+        let output = output_buf
             .lock()
             .ok()
             .map(|b| b.clone())
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        (output, exit_message)
     };
 
     handle
@@ -201,7 +208,30 @@ async fn render_to_handle(
         .await
         .map_err(|e| anyhow::anyhow!("{:?}", e))?;
 
-    Ok(())
+    if let Some(exit_msg) = should_exit {
+        close_via_handle(handle, channel, Some(exit_msg)).await;
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+/// Close the channel via Handle
+async fn close_via_handle(handle: &Handle, channel: ChannelId, exit_message: Option<String>) {
+    let _ = handle
+        .data(channel, "\x1b[?1049l\x1b[?25h\x1b[0m".into())
+        .await;
+    let _ = handle
+        .data(
+            channel,
+            exit_message
+                .unwrap_or("== Exited - Goodbye! ==".to_string())
+                .into(),
+        )
+        .await;
+    let _ = handle.data(channel, "\n\n\r".into()).await;
+    let _ = handle.eof(channel).await;
+    let _ = handle.close(channel).await;
 }
 
 impl Handler for SSHUIHandler {
@@ -305,7 +335,7 @@ impl Handler for SSHUIHandler {
                     }
 
                     // Render directly from background task
-                    if let Err(_) = render_to_handle(
+                    match render_to_handle(
                         &handle,
                         channel,
                         &app,
@@ -314,7 +344,9 @@ impl Handler for SSHUIHandler {
                     )
                     .await
                     {
-                        break;
+                        Ok(true) => break, // App requested exit
+                        Ok(false) => {}    // Continue
+                        Err(_) => break,   // Error, stop
                     }
                 }
             });

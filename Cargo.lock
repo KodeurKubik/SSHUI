@@ -135,6 +135,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "badapple-ssh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "sshui",
+ "tokio",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -789,6 +798,7 @@ name = "example"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "badapple-ssh",
  "counter-ssh",
  "demo-ssh",
  "graph-ssh",

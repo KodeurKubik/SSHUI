@@ -1,0 +1,11 @@
+[package]
+name = "badapple-ssh"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+sshui = { path = "../../", features = ["keyring"] }
+
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"

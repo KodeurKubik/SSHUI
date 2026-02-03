@@ -1,0 +1,5 @@
+badapple-frames/
+node_modules
+bun.lock
+package.json
+tsconfig.json

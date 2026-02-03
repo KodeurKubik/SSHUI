@@ -8,7 +8,7 @@ use sshui::ratatui::{
 };
 use sshui::{InputEvent, KeyCode, KeyEvent, SSHUITerminal};
 
-pub const TICK_RATE: std::time::Duration = std::time::Duration::from_millis(250);
+pub const TICK_RATE: std::time::Duration = std::time::Duration::from_millis(66);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -242,8 +242,13 @@ fn get_projects() -> Vec<ProjectStruct> {
         },
         ProjectStruct {
             title: "Grapher".to_string(),
-            description: "Graph functions in  your terminal! (holy moly)".to_string(),
+            description: "Graph functions in the terminal! (holy moly)".to_string(),
             app: Box::new(graph_ssh::GraphApp::default()),
+        },
+        ProjectStruct {
+            title: "Bad Apple".to_string(),
+            description: "Watch bad apple.... in the terminal??".to_string(),
+            app: Box::new(badapple_ssh::App::default()),
         },
         ProjectStruct {
             title: "Wordle".to_string(),

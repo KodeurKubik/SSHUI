@@ -11,6 +11,7 @@ graph-ssh = { path = "../graph" }
 wordle-ssh = { path = "../wordle" }
 counter-ssh = { path = "../counter" }
 demo-ssh = { path = "../demo" }
+badapple-ssh = { path = "../badapple" }
 
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
