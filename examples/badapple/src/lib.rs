@@ -40,11 +40,8 @@ impl sshui::App for App {
         };
 
         match key {
-            sshui::KeyCode::Char(char) => {
-                if char == 'q' {
-                    self.exit = true
-                }
-            }
+            sshui::KeyCode::Char('q') | sshui::KeyCode::Escape => self.exit = true,
+
             _ => {}
         }
     }

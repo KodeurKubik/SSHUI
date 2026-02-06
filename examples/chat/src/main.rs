@@ -1,6 +1,7 @@
-use sshui::SSHUIConfig;
+use std::time::Duration;
 
-pub const REFRESH_RATE: std::time::Duration = std::time::Duration::from_millis(66);
+use chat_ssh::Message;
+use sshui::SSHUIConfig;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
@@ -23,12 +24,15 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
+    let lobby = sshui::Lobby::<Message>::new(100)
+        .with_validator(|msg| msg.content.len() <= 200 && msg.author.len() <= 25);
+
     sshui::new_server_with_config(
         config,
         ("0.0.0.0", port),
-        || Box::new(badapple_ssh::App::default()),
+        move || Box::new(chat_ssh::App::new(lobby.clone())),
         SSHUIConfig {
-            refresh_rate: Some(REFRESH_RATE),
+            refresh_rate: Some(Duration::from_millis(500)),
             ..Default::default()
         },
     )

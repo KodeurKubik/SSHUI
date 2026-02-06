@@ -7,6 +7,8 @@
 //! [examples]: https://github.com/ratatui/ratatui/blob/main/examples
 //! [examples readme]: https://github.com/ratatui/ratatui/blob/main/examples/README.md
 
+use sshui::SSHUIConfig;
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     #[cfg(debug_assertions)]
@@ -28,9 +30,15 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
-    sshui::new_server_with_refresh(config, ("0.0.0.0", port), demo_ssh::TICK_RATE, || {
-        Box::new(demo_ssh::App::new(demo_ssh::ENHANCED_GRAPHICS))
-    })
+    sshui::new_server_with_config(
+        config,
+        ("0.0.0.0", port),
+        || Box::new(demo_ssh::App::new(demo_ssh::ENHANCED_GRAPHICS)),
+        SSHUIConfig {
+            refresh_rate: Some(demo_ssh::REFRESH_RATE),
+            ..Default::default()
+        },
+    )
     .await
     .unwrap();
 

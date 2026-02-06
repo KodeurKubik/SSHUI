@@ -17,7 +17,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! sshui = "0.1"
+//! sshui = "0.2"
 //! ratatui = "0.28"
 //! anyhow = "1.0"
 //! ```
@@ -110,12 +110,14 @@ mod auth;
 pub mod backend;
 #[cfg(feature = "keyring")]
 mod key;
+mod lobby;
 mod ssh;
 
 #[cfg(feature = "keyring")]
 pub use key::{get_debug_ssh_key, get_ssh_key};
 pub type SSHUITerminal = Terminal<SSHUIBackend>;
 pub use auth::{AuthDecision, AuthHandler, NoAuth};
+pub use lobby::Lobby;
 pub use ratatui;
 pub use russh::server::Config;
 pub use std::time::Duration;
@@ -178,11 +180,17 @@ pub trait App: Send + Sync {
     ///
     /// * `event` - The input event to process
     fn input(&mut self, event: InputEvent);
+
     /// Called periodically for time-based updates (optional).
     ///
     /// This method is called at the refresh rate interval if configured.
     /// Use it for animations, progress bars, or other time-based updates.
     fn on_tick(&mut self) {
+        // Default: no-op
+    }
+
+    /// Called when the front-end interface sends a message to it's backend
+    fn on_message(&mut self) {
         // Default: no-op
     }
 }
@@ -193,9 +201,11 @@ pub trait App: Send + Sync {
 /// connections. Each connected client will get a fresh instance of your application created by
 /// the provided factory function.
 ///
+/// If you need to provide a config (auth, refresh_rate...), take a look at `new_server_with_config`.
+///
 /// # Arguments
 ///
-/// * `config` - The SSH server configuration (see `russh::server::Config`)
+/// * `server_config` - The SSH server configuration (see `russh::server::Config`)
 /// * `addrs` - The address(es) to bind to (e.g., `("0.0.0.0", 2222)`)
 /// * `app_factory` - A closure that creates a new instance of your App for each client connection
 ///
@@ -216,125 +226,75 @@ pub async fn new_server<
     A: ToSocketAddrs + Send + std::fmt::Debug,
     F: Fn() -> Box<dyn App> + Send + Sync + 'static,
 >(
-    config: Config,
+    server_config: Config,
     addrs: A,
     app_factory: F,
 ) -> Result<()> {
-    let config = Arc::new(config);
-    let app_factory = Arc::new(app_factory);
-    let mut server = SSHUIServer {
-        app_factory,
-        connected_clients: Arc::new(AtomicUsize::new(0)),
-        auth: Arc::new(NoAuth),
-        refresh_rate: None,
-    };
-
-    println!("Starting SSH server on {addrs:?}");
-    print!("Waiting for clients... ");
-    std::io::stdout().flush()?;
-
-    server.run_on_address(config, addrs).await?;
-
-    Ok(())
+    new_server_with_config(server_config, addrs, app_factory, SSHUIConfig::default()).await
 }
 
-pub async fn new_server_with_password<
-    A: ToSocketAddrs + Send + std::fmt::Debug,
-    F: Fn() -> Box<dyn App> + Send + Sync + 'static,
-    L: AuthHandler,
->(
-    config: Config,
-    addrs: A,
-    app_factory: F,
-    auth: L,
-) -> Result<()> {
-    let config = Arc::new(config);
-    let app_factory = Arc::new(app_factory);
-    let mut server = SSHUIServer {
-        app_factory,
-        connected_clients: Arc::new(AtomicUsize::new(0)),
-        auth: Arc::new(auth),
-        refresh_rate: None,
-    };
-
-    println!("Starting SSH server on {addrs:?}");
-    print!("Waiting for clients... ");
-    std::io::stdout().flush()?;
-
-    server.run_on_address(config, addrs).await?;
-
-    Ok(())
-}
-
-/// Starts an SSH server with a periodic refresh rate.
+/// Starts an SSH server with the specified config
 ///
-/// Same as `new_server` but with periodic re-rendering at the specified interval.
-/// Useful for apps with animations or time-based updates.
+/// Same as `new_server` but a specified `SSHUIConfig` config.
 ///
 /// # Arguments
 ///
-/// * `config` - The SSH server configuration
+/// * `server_config` - The SSH server configuration
 /// * `addrs` - The address(es) to bind to
-/// * `refresh_rate` - How often to re-render (e.g., `Duration::from_millis(250)`)
 /// * `app_factory` - A closure that creates a new App instance for each client
-pub async fn new_server_with_refresh<
+/// * `config` - The SSHUIConfig
+pub async fn new_server_with_config<
     A: ToSocketAddrs + Send + std::fmt::Debug,
     F: Fn() -> Box<dyn App> + Send + Sync + 'static,
 >(
-    config: Config,
+    server_config: Config,
     addrs: A,
-    refresh_rate: std::time::Duration,
     app_factory: F,
+    config: SSHUIConfig,
 ) -> Result<()> {
-    let config = Arc::new(config);
+    let server_config = Arc::new(server_config);
     let app_factory = Arc::new(app_factory);
     let mut server = SSHUIServer {
         app_factory,
         connected_clients: Arc::new(AtomicUsize::new(0)),
-        auth: Arc::new(NoAuth),
-        refresh_rate: Some(refresh_rate),
+        auth: config.auth,
+        refresh_rate: config.refresh_rate,
     };
 
     println!("Starting SSH server on {addrs:?}");
-    print!("Waiting for clients... ");
+    print!("Waiting for clients...");
     std::io::stdout().flush()?;
 
-    server.run_on_address(config, addrs).await?;
+    server.run_on_address(server_config, addrs).await?;
 
     Ok(())
 }
 
-/// Starts an SSH server with password auth and a periodic refresh rate.
+/// A SSHUI server configuration struct.
 ///
-/// Combines password authentication with periodic re-rendering.
-pub async fn new_server_with_password_and_refresh<
-    A: ToSocketAddrs + Send + std::fmt::Debug,
-    F: Fn() -> Box<dyn App> + Send + Sync + 'static,
-    L: AuthHandler,
->(
-    config: Config,
-    addrs: A,
-    refresh_rate: std::time::Duration,
-    app_factory: F,
-    auth: L,
-) -> Result<()> {
-    let config = Arc::new(config);
-    let app_factory = Arc::new(app_factory);
-    let mut server = SSHUIServer {
-        app_factory,
-        connected_clients: Arc::new(AtomicUsize::new(0)),
-        auth: Arc::new(auth),
-        refresh_rate: Some(refresh_rate),
-    };
-
-    println!("Starting SSH server on {addrs:?}");
-    print!("Waiting for clients... ");
-    std::io::stdout().flush()?;
-
-    server.run_on_address(config, addrs).await?;
-
-    Ok(())
+/// # Fields
+///
+/// - `auth` (`Arc<dyn AuthHandler>`) - The AuthHandler that will decide if the client can connect or not.
+/// - `refresh_rate` (`Option<Duration>`) - Optional refresh rate to re-render the app on a regular interval.
+///
+/// # Example
+///
+/// ```ignore
+/// SSHUIConfig {
+///     auth: Arc::new(MyAuth),
+///     ..Default::default()
+/// }
+/// ```
+pub struct SSHUIConfig {
+    pub auth: Arc<dyn AuthHandler>,
+    pub refresh_rate: Option<Duration>,
 }
 
-#[cfg(test)]
-mod test;
+impl Default for SSHUIConfig {
+    fn default() -> Self {
+        Self {
+            auth: Arc::new(NoAuth),
+            refresh_rate: None,
+        }
+    }
+}

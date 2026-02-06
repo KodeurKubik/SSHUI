@@ -6,9 +6,9 @@ use sshui::ratatui::{
     buffer::Buffer, layout::Rect, prelude::Widget, style::Stylize, symbols::border, text::Line,
     widgets::Block,
 };
-use sshui::{InputEvent, KeyCode, KeyEvent, SSHUITerminal};
+use sshui::{InputEvent, KeyCode, KeyEvent, SSHUIConfig, SSHUITerminal};
 
-pub const TICK_RATE: std::time::Duration = std::time::Duration::from_millis(66);
+pub const REFRESH_RATE: std::time::Duration = std::time::Duration::from_millis(66);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -31,15 +31,18 @@ async fn main() -> Result<()> {
         }
     }
 
-    sshui::new_server_with_refresh(config, ("0.0.0.0", port), TICK_RATE, || {
-        Box::new(ExampleApp {
-            selected: 0,
-            app: None,
-            exit_message: None,
-            vertical_scroll: 0,
-            vertical_scroll_state: ScrollbarState::default(),
-        })
-    })
+    let chat_lobby = sshui::Lobby::<chat_ssh::Message>::new(100)
+        .with_validator(|msg| msg.content.len() <= 200 && msg.author.len() <= 25);
+
+    sshui::new_server_with_config(
+        config,
+        ("0.0.0.0", port),
+        move || Box::new(ExampleApp::new(chat_lobby.clone())),
+        SSHUIConfig {
+            refresh_rate: Some(REFRESH_RATE),
+            ..Default::default()
+        },
+    )
     .await?;
 
     Ok(())
@@ -51,6 +54,20 @@ pub struct ExampleApp {
     exit_message: Option<String>,
     vertical_scroll: usize,
     vertical_scroll_state: ScrollbarState,
+    chat_lobby: sshui::Lobby<chat_ssh::Message>,
+}
+
+impl ExampleApp {
+    fn new(chat_lobby: sshui::Lobby<chat_ssh::Message>) -> Self {
+        Self {
+            selected: 0,
+            app: None,
+            exit_message: None,
+            vertical_scroll: 0,
+            vertical_scroll_state: ScrollbarState::default(),
+            chat_lobby,
+        }
+    }
 }
 
 impl sshui::App for ExampleApp {
@@ -82,7 +99,7 @@ impl sshui::App for ExampleApp {
 
         match key {
             KeyCode::Enter => {
-                self.app = Some(get_projects().into_iter().nth(self.selected).unwrap().app);
+                self.app = Some(self.create_app(self.selected));
             }
             KeyCode::DownArrow => {
                 self.vertical_scroll = self.vertical_scroll.saturating_add(1);
@@ -95,7 +112,7 @@ impl sshui::App for ExampleApp {
                     self.vertical_scroll_state.position(self.vertical_scroll);
             }
             KeyCode::RightArrow => {
-                if self.selected + 1 < get_projects().len() {
+                if self.selected + 1 < PROJECTS.len() {
                     self.selected += 1;
                 }
             }
@@ -138,8 +155,7 @@ impl ExampleApp {
             horizontal: 1,
         });
 
-        let projects = get_projects();
-        let proj_len = (projects.len() as f32 / 2.0).ceil() as usize;
+        let proj_len = (PROJECTS.len() as f32 / 2.0).ceil() as usize;
         let row_height: u16 = 8;
         let total_height = proj_len as u16 * row_height;
         let max_scroll = total_height.saturating_sub(inner.height) as usize;
@@ -181,7 +197,7 @@ impl ExampleApp {
                 ])
                 .split(row_rect);
 
-            let proj1 = &projects[2 * i];
+            let proj1 = &PROJECTS[2 * i];
             let box1 = if 2 * i == self.selected {
                 Block::bordered()
                     .border_set(border::ROUNDED)
@@ -197,8 +213,8 @@ impl ExampleApp {
             .centered();
             content1.block(box1).render(boxes[0], buf);
 
-            if projects.len() > 2 * i + 1 {
-                let proj2 = &projects[2 * i + 1];
+            if PROJECTS.len() > 2 * i + 1 {
+                let proj2 = &PROJECTS[2 * i + 1];
                 let box2 = if 2 * i + 1 == self.selected {
                     Block::bordered()
                         .border_set(border::ROUNDED)
@@ -225,42 +241,45 @@ impl ExampleApp {
             &mut self.vertical_scroll_state,
         );
     }
+
+    fn create_app(&self, index: usize) -> Box<dyn sshui::App> {
+        match index {
+            0 => Box::new(demo_ssh::App::new(demo_ssh::ENHANCED_GRAPHICS)),
+            1 => Box::new(badapple_ssh::App::default()),
+            2 => Box::new(chat_ssh::App::new(self.chat_lobby.clone())),
+            3 => Box::new(graph_ssh::GraphApp::default()),
+            4 => Box::new(wordle_ssh::WordleApp::default()),
+            _ => unreachable!(),
+        }
+    }
 }
 
-struct ProjectStruct {
-    title: String,
-    description: String,
-    app: Box<dyn sshui::App>,
+struct ProjectEntry {
+    title: &'static str,
+    description: &'static str,
 }
 
-fn get_projects() -> Vec<ProjectStruct> {
-    vec![
-        ProjectStruct {
-            title: "Demo".to_string(),
-            description: "show everything sshui x ratatui can do!".to_string(),
-            app: Box::new(demo_ssh::App::new(demo_ssh::ENHANCED_GRAPHICS)),
-        },
-        ProjectStruct {
-            title: "Grapher".to_string(),
-            description: "Graph functions in the terminal! (holy moly)".to_string(),
-            app: Box::new(graph_ssh::GraphApp::default()),
-        },
-        ProjectStruct {
-            title: "Bad Apple".to_string(),
-            description: "Watch bad apple.... in the terminal??".to_string(),
-            app: Box::new(badapple_ssh::App::default()),
-        },
-        ProjectStruct {
-            title: "Wordle".to_string(),
-            description: "just a regular game of worlde lol".to_string(),
-            app: Box::new(wordle_ssh::WordleApp::default()),
-        },
-        ProjectStruct {
-            title: "Counter".to_string(),
-            description: "that's litteraly just like a hello world".to_string(),
-            app: Box::new(counter_ssh::App::default()),
-        },
-    ]
-}
+const PROJECTS: &[ProjectEntry] = &[
+    ProjectEntry {
+        title: "Demo",
+        description: "show everything sshui x ratatui can do!",
+    },
+    ProjectEntry {
+        title: "Bad Apple",
+        description: "Watch bad apple.... in the terminal??",
+    },
+    ProjectEntry {
+        title: "Chat App",
+        description: "Chat in real time... from SSH!!",
+    },
+    ProjectEntry {
+        title: "Grapher",
+        description: "Graph functions in the terminal! (holy moly)",
+    },
+    ProjectEntry {
+        title: "Wordle",
+        description: "just a regular game of worlde lol",
+    },
+];
 
 // TODO? typing test: calculate your words per minute by typing (fast)!

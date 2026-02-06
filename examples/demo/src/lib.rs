@@ -1,7 +1,7 @@
 mod ui;
 
 pub const ENHANCED_GRAPHICS: bool = true;
-pub const TICK_RATE: std::time::Duration = std::time::Duration::from_millis(250);
+pub const REFRESH_RATE: std::time::Duration = std::time::Duration::from_millis(250);
 
 use rand::SeedableRng;
 use rand::distr::{Distribution, Uniform};

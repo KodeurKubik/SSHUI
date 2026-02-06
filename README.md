@@ -16,6 +16,7 @@ https://github.com/user-attachments/assets/f3a5bf04-11df-4d3f-a8c0-1e2e67021fa4
 - **ANSI Rendering** - Full support for colors and styles
 - **Terminal Resizing** - Handles dynamic terminal size changes
 - **Customizable Auth** - Ask for a specific username and password (or not!)
+- **Backend Support** - Write your own backend to connect clients to each other!
 
 ## Installation
 
@@ -23,7 +24,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sshui = "0.1"
+sshui = "0.2"
 ratatui = "0.28"
 anyhow = "1.0"
 ```

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sshui::{
-    self, AuthDecision, AuthHandler, InputEvent, KeyCode, KeyEvent, SSHUITerminal,
+    self, AuthDecision, AuthHandler, InputEvent, KeyCode, KeyEvent, SSHUIConfig, SSHUITerminal,
     ratatui::{
         buffer::Buffer,
         layout::Rect,
@@ -43,11 +43,14 @@ async fn main() -> Result<()> {
         }
     }
 
-    sshui::new_server_with_password(
+    sshui::new_server_with_config(
         config,
         ("0.0.0.0", port),
         || Box::new(App::default()),
-        MyAuth,
+        SSHUIConfig {
+            auth: std::sync::Arc::new(MyAuth),
+            ..Default::default()
+        },
     )
     .await
     .unwrap();
