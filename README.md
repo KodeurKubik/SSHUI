@@ -4,9 +4,7 @@ A Rust framework for building interactive terminal user interfaces (TUIs) that r
 
 ## Demo
 
-
 https://github.com/user-attachments/assets/174a30fe-a076-4ae3-b2c0-3fea9acb4dd4
-
 
 ## Features
 
