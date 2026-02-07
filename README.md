@@ -105,7 +105,10 @@ Press `Ctrl+C` to exit.
 
 The repository includes example applications:
 
-- **Example** - All the following examples at once :)
+- **Example** - All the following examples at once :) (except login and counter)
+- **Bad Apple** - The bad apple video, in ascii, from SSH! (i bet im not the first one)
+- **Chat App** - Send messages to all connected users!
+- **Demo** - The Ratatui Demo, adapted for SSHUI
 - **Graph** - A really cool grapher in the terminal (holy moly)
 - **Counter** - A simple incrementing counter with keyboard controls
 - **Wordle** - A word guessing game
