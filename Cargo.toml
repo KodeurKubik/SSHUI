@@ -36,7 +36,7 @@ ratatui = "0.30"
 russh = "0.55"
 anyhow = "1"
 
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native", "sync-secret-service"], optional = true }
+keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native", "sync-secret-service", "vendored"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
@@ -48,7 +48,6 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 strip = true
-panic = "abort"
 
 [profile.release.package."*"]
 opt-level = 3
