@@ -249,6 +249,7 @@ impl ExampleApp {
             2 => Box::new(chat_ssh::App::new(self.chat_lobby.clone())),
             3 => Box::new(graph_ssh::GraphApp::default()),
             4 => Box::new(wordle_ssh::WordleApp::default()),
+            5 => Box::new(wpm_ssh::WPMApp::default()),
             _ => unreachable!(),
         }
     }
@@ -279,6 +280,10 @@ const PROJECTS: &[ProjectEntry] = &[
     ProjectEntry {
         title: "Wordle",
         description: "just a regular game of worlde lol",
+    },
+    ProjectEntry {
+        title: "Typing Test",
+        description: "type type type type",
     },
 ];
 

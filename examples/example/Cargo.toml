@@ -13,6 +13,7 @@ counter-ssh = { path = "../counter" }
 demo-ssh = { path = "../demo" }
 badapple-ssh = { path = "../badapple" }
 chat-ssh = { path = "../chat" }
+wpm-ssh = { path = "../wpm" }
 
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"

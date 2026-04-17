@@ -817,6 +817,7 @@ dependencies = [
  "sshui",
  "tokio",
  "wordle-ssh",
+ "wpm-ssh",
 ]
 
 [[package]]
